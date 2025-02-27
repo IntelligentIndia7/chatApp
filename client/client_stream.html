@@ -1,0 +1,78 @@
+...
+<div id="chat-container"></div>
+<div id="input-container">
+    <input type="text" id="message-input" placeholder="Type your message here">
+    <button onclick="sendMessage()">Send</button>
+</div>
+<div id="status">Disconnected</div>
+
+<script>
+    let ws;
+    let currentResponseDiv = null;
+    const messageInput = document.getElementById('message-input');
+    const chatContainer = document.getElementById('chat-container');
+    console.log('chatContainer:', chatContainer); // Add this to debug
+
+    function connectWebsocket() {
+        ws = new WebSocket('ws://localhost:8000/chat');
+        const status = document.getElementById('status');
+
+        ws.onopen = () => {
+            status.textContent = 'Connected to chat server';
+            status.style.color = '#28a745';
+        };
+
+        ws.onmessage = (event) => {
+            console.log('Received data:', event.data); // Add debug log
+            if (currentResponseDiv) {
+                currentResponseDiv.textContent += event.data;
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            } else {
+                appendMessage(event.data, 'error');
+            }
+        };
+
+        ws.onerror = (error) => {
+            appendMessage('Connection error occurred', 'error');
+            status.textContent = 'Error connecting to server';
+            status.style.color = '#dc3545';
+            console.error('Websocket error:', error);
+        };
+
+        ws.onclose = () => {
+            status.textContent = 'Disconnected from server';
+            status.style.color = '#dc3545';
+            setTimeout(connectWebsocket, 2000);
+        };
+    }
+
+    function sendMessage() {
+        const message = messageInput.value.trim();
+        if (message && ws.readyState === WebSocket.OPEN) {
+            ws.send(message);
+            appendMessage(message, 'sent');
+            currentResponseDiv = document.createElement('div');
+            currentResponseDiv.className = 'message received';
+            chatContainer.appendChild(currentResponseDiv);
+            messageInput.value = '';
+        } else if (ws.readyState != WebSocket.OPEN) {
+            appendMessage('Not connected to server', 'error');
+        }
+    }
+
+    function appendMessage(message, type) {
+        const div = document.createElement('div');
+        div.className = `message ${type}`
+        div.textContent = message;
+        chatContainer.appendChild(div);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    messageInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') sendMessage();
+    });
+
+    connectWebsocket();
+</script>
+</body>
+</html>
